@@ -20,6 +20,8 @@
   --line:rgba(var(--fg-rgb),.22);
   --tint:rgba(var(--fg-rgb),.07);
   --tint-strong:rgba(var(--fg-rgb),.14);
+  --hl:rgb(241,243,246);   /* スポットライト中の強調色（背景色に合わせて自動設定） */
+  --on-hl:#1F3A5F;
   --pad:24px;
   --font:"Murecho","Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",system-ui,sans-serif;
   --ease:cubic-bezier(.2,.7,.2,1);
@@ -51,7 +53,7 @@ p,h2,ul,dl,dd{margin:0}
 /* 起動アニメーション */
 #splash{align-items:center;justify-content:center;gap:44px;cursor:pointer}
 .splash-mark{width:min(68vw,280px);display:grid;place-items:center;opacity:0;transform:scale(.96)}
-.splash-mark.in{animation:mark-in 1.2s var(--ease) forwards}
+.splash-mark.in{animation:mark-in .5s var(--ease) forwards}
 .splash-mark img{max-width:100%;max-height:140px;object-fit:contain;display:block}
 .splash-mark svg{width:112px;height:112px;display:block}
 .splash-name{font-weight:900;font-size:clamp(26px,8vw,40px);line-height:1.3;text-align:center;overflow-wrap:anywhere}
@@ -75,6 +77,19 @@ p,h2,ul,dl,dd{margin:0}
   text-align:center;font-size:13px;color:var(--muted);opacity:0;transition:opacity .5s var(--ease);
 }
 #scramble.is-done .scramble-hint{opacity:1}
+
+/* 刀で切る演出 */
+.slash{position:fixed;inset:0;z-index:50;pointer-events:none;overflow:hidden}
+.slash-piece{
+  position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;
+  padding:env(safe-area-inset-top,0px) var(--pad) env(safe-area-inset-bottom,0px);
+  background:var(--bg);will-change:transform,opacity;
+}
+.blade{
+  position:absolute;height:2px;border-radius:2px;transform-origin:0 50%;
+  background:var(--fg);
+  box-shadow:0 0 6px rgba(var(--fg-rgb),.95),0 0 22px 3px rgba(var(--fg-rgb),.5);
+}
 
 /* ツアー */
 .tour-frame{width:100%;max-width:520px;height:100%;margin:0 auto;display:flex;flex-direction:column}
@@ -144,11 +159,40 @@ p,h2,ul,dl,dd{margin:0}
 .btn-line:active{background:var(--tint)}
 
 /* 下部ナビ */
-.tour-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px var(--pad) 18px}
-.btn-text{min-height:48px;padding:12px 4px;color:var(--muted);font-weight:500}
+.tour-nav{position:relative;z-index:6;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px var(--pad) 18px}
+.btn-text{min-height:48px;padding:12px 4px;color:var(--muted);font-weight:500;transition:color .35s var(--ease)}
 .btn-text:disabled{visibility:hidden}
-.btn-solid{min-height:52px;min-width:136px;padding:14px 28px;border-radius:999px;background:var(--fg);color:var(--bg);font-weight:700}
+.btn-solid{min-height:52px;min-width:136px;padding:14px 28px;border-radius:999px;background:var(--fg);color:var(--bg);font-weight:700;transition:background-color .35s var(--ease),color .35s var(--ease)}
 .btn-solid:active{opacity:.85}
+
+/* スポットライト（強調表示） */
+.spot{position:fixed;inset:0;z-index:5;pointer-events:none;opacity:0;transition:opacity .35s var(--ease)}
+.spot.on{opacity:1}
+.spot-catch{position:absolute;inset:0;cursor:pointer}
+.spot.on .spot-catch{pointer-events:auto}
+.spot-ring{
+  position:absolute;border-radius:14px;
+  box-shadow:0 0 0 2px var(--hl),0 0 0 200vmax rgba(0,0,0,.62);
+  transition:top .5s var(--ease),left .5s var(--ease),width .5s var(--ease),height .5s var(--ease);
+}
+.spot-ring::after{content:"";position:absolute;inset:-2px;border-radius:16px;box-shadow:0 0 0 2px var(--hl);opacity:0}
+.spot-ring.pulse::after{animation:ring-pulse 1.3s var(--ease) 2}
+@keyframes ring-pulse{from{inset:-2px;opacity:.85}to{inset:-16px;border-radius:26px;opacity:0}}
+.spot-ring.no-anim{transition:none}
+.spot-tip{
+  position:absolute;width:max-content;max-width:min(300px,calc(100vw - 32px));
+  padding:12px 16px;border-radius:14px;background:var(--hl);color:var(--on-hl);
+  font-size:15px;font-weight:700;line-height:1.55;
+  opacity:0;transform:translateY(6px);transition:opacity .3s var(--ease),transform .3s var(--ease);
+}
+.spot-tip.show{opacity:1;transform:none}
+.spot-tip::before{content:"";position:absolute;left:calc(var(--ax,50%) - 7px);width:14px;height:14px;border-radius:2px;background:inherit;transform:rotate(45deg)}
+.spot-tip[data-side="below"]::before{top:-6px}
+.spot-tip[data-side="above"]::before{bottom:-6px}
+.spot-tip[data-side="inside"]::before{display:none}
+.spot-hint{display:block;margin-top:4px;font-size:12px;font-weight:500;opacity:.68}
+.tour-nav{transition:opacity .3s var(--ease)}
+#tour.spot-mode .tour-nav{opacity:0;pointer-events:none}
 
 /* QRコード */
 dialog.qr{
@@ -198,6 +242,11 @@ dialog.qr::backdrop{background:rgba(0,0,0,.55)}
       <button type="button" class="btn-solid" id="nextBtn">次へ</button>
     </nav>
   </div>
+  <div class="spot" id="spot">
+    <div class="spot-catch" id="spotCatch"></div>
+    <div class="spot-ring" id="spotRing"></div>
+    <p class="spot-tip" id="spotTip" role="status" aria-live="polite"></p>
+  </div>
 </section>
 
 <dialog class="qr" id="qrDialog" aria-labelledby="qrTitle">
@@ -220,13 +269,24 @@ dialog.qr::backdrop{background:rgba(0,0,0,.55)}
      管理者設定（メンバーは触らない）
      ========================================================= */
   const ASSETS = {
-    companyLogo: "assets/company-logo.png",
-    companyLogoLight: "assets/company-logo-light.png", // 濃い背景用の白抜きロゴ（無ければ通常ロゴを使用）
+    // 上から順に探して、最初に見つかったロゴを使う（PNG・SVGどちらでも書き換え不要）
+    companyLogo: ["assets/company-logo.png", "assets/company-logo.svg"],
+    // 濃い背景用の白抜きロゴ（無ければ通常ロゴを使用）
+    companyLogoLight: ["assets/company-logo-light.png", "assets/company-logo-light.svg"],
     appLogo: "" // アプリロゴの画像パス。空なら内蔵マークを表示
   };
-  const SPLASH_MS = 5000;        // 起動アニメーションの長さ
-  const SCRAMBLE_HOLD_MS = 2000; // スクランブル完了後、ツアーへ進むまで
+  const SPLASH_MS = 1000;      // 起動アニメーションの長さ
+  const SLASH_DELAY_MS = 1200; // スクランブル完了から、刀で切る演出が始まるまで
   const QR_LIB = "https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";
+
+  /* ツアーの強調表示で出す吹き出しの文言 */
+  const TOUR_TEXT = {
+    name: p => p.name ? `${p.name}です。どうぞよろしくお願いします。` : "はじめまして。",
+    photo: "顔も覚えていただけるとうれしいです。",
+    intro: "どんな人間か、少しだけ紹介させてください。",
+    sns: label => `${label}でつながりませんか？ タップするとプロフィールが開きます。`,
+    save: "連絡先に保存して、いつでもご連絡ください。"
+  };
 
   /* profile.js が読めないときのサンプル */
   const DEMO = {
@@ -252,11 +312,12 @@ dialog.qr::backdrop{background:rgba(0,0,0,.55)}
   const APP_MARK = '<svg viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="12" y="32" width="74" height="54" rx="10"/><circle cx="33" cy="52" r="7" fill="currentColor" stroke="none"/><path d="M50 49h22M50 64h14"/><path d="M96 43a26 26 0 0 1 0 32"/><path d="M106 33a40 40 0 0 1 0 52" opacity=".55"/></svg>';
   const EXT_ICON = '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.5 4H16v4.5"/><path d="M16 4l-7 7"/><path d="M14 11.5V15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h3.5"/></svg>';
 
+  /* 表示順＝優先順位。いちばん上のSNSがツアーで強調表示される（1位 Facebook、2位 Sansan） */
   const SNS_DEFS = [
+    { key: "facebook",  label: "Facebook",  mark: "Fb", toUrl: v => "https://www.facebook.com/" + v },
     { key: "sansan",    label: "Sansan",    mark: "Sa", toUrl: v => v },
     { key: "instagram", label: "Instagram", mark: "Ig", toUrl: v => "https://www.instagram.com/" + v.replace(/^@/, "") },
-    { key: "facebook",  label: "Facebook",  mark: "Fb", toUrl: v => "https://www.facebook.com/" + v },
-    { key: "x",         label: "X",         mark: "X",  toUrl: v => "https://x.com/" + v.replace(/^@/, "") },
+    { key: "x",        label: "X",         mark: "X",  toUrl: v => "https://x.com/" + v.replace(/^@/, "") },
     { key: "linkedin",  label: "LinkedIn",  mark: "In", toUrl: v => "https://www.linkedin.com/in/" + v },
     { key: "whatsapp",  label: "WhatsApp",  mark: "Wa", toUrl: v => "https://wa.me/" + v.replace(/\D/g, "").replace(/^0/, "81") }
   ];
@@ -345,6 +406,9 @@ dialog.qr::backdrop{background:rgba(0,0,0,.55)}
     const root = document.documentElement.style;
     root.setProperty("--bg", "#" + h);
     root.setProperty("--fg-rgb", fg.join(","));
+    // スポットライト中は画面が暗くなるので、吹き出しやボタンは暗い面の上で目立つ色にする
+    root.setProperty("--hl", isDark ? `rgb(${fg.join(",")})` : "#fff");
+    root.setProperty("--on-hl", isDark ? "#" + h : `rgb(${fg.join(",")})`);
     $('meta[name="theme-color"]').setAttribute("content", "#" + h);
   }
 
@@ -355,9 +419,14 @@ dialog.qr::backdrop{background:rgba(0,0,0,.55)}
     i.onerror = () => res(null);
     i.src = src;
   });
-  async function companyLogo() {
-    if (isDark) { const l = await loadImg(ASSETS.companyLogoLight); if (l) return l; }
-    return loadImg(ASSETS.companyLogo);
+  const loadFirst = async list => {
+    for (const src of [].concat(list || [])) { const ok = await loadImg(src); if (ok) return ok; }
+    return null;
+  };
+  let logoJob = null;
+  function companyLogo() {
+    if (!logoJob) logoJob = (async () => (isDark && await loadFirst(ASSETS.companyLogoLight)) || loadFirst(ASSETS.companyLogo))();
+    return logoJob;
   }
 
   function go(id) {
@@ -512,23 +581,208 @@ dialog.qr::backdrop{background:rgba(0,0,0,.55)}
 
     if (sampleMsg) { const n = $("#sampleNote"); n.textContent = sampleMsg; n.hidden = false; }
     document.title = [P.name, P.company].filter(Boolean).join(" | ") || "Digital Card";
+    buildFlow();
   }
 
-  let cur = 0;
-  function showStep(i) {
-    const steps = $$(".step");
-    cur = Math.max(0, Math.min(steps.length - 1, i));
-    steps.forEach((s, k) => {
-      s.classList.toggle("is-current", k === cur);
-      s.classList.toggle("is-before", k < cur);
-      s.inert = k !== cur;
+  /* ---------- ページごとの強調表示 ----------
+     ページに入る → 強調表示 → タップで同じページの次の強調へ → 最後のタップで消えて通常表示 → 「次へ」で次のページ
+     強調は各ページを初めて開いたときだけ出る。「最初から見る」でもう一度出る。
+     強調する場所：名前 → 写真 ／ 自己紹介 ／ SNS（Facebook ＞ Sansan ＞ その他） */
+  let TOURS = [];
+  function buildFlow() {
+    const pages = $$(".step");
+    const q = (i, sel) => pages[i].querySelector(sel);
+    TOURS = [
+      [],
+      [{ el: q(1, ".name"), tight: true, text: TOUR_TEXT.name(P) },
+       P.photo && { el: q(1, ".photo"), pad: 6, text: TOUR_TEXT.photo, when: () => !!q(1, ".photo img") }],
+      [{ el: q(2, ".intro") || q(2, ".facts"), text: TOUR_TEXT.intro }],
+      [P.sns.length
+        ? { el: q(3, ".sns a"), pad: 6, live: true, text: TOUR_TEXT.sns(P.sns[0].label) }
+        : { el: q(3, "#saveBtn"), pad: 6, live: true, text: TOUR_TEXT.save }]
+    ].map((list, i) => list.filter(Boolean).map(t => ({ ...t, page: i })));
+  }
+  const usable = t => !!t.el && (!t.when || t.when());
+
+  let page = -1, spotIdx = -1, spotTimer = 0, tipTimer = 0, spotStep = null, quietUntil = 0;
+  const toured = new Set();
+  function showPage(p, { tour = true } = {}) {
+    const pages = $$(".step");
+    page = Math.max(0, Math.min(pages.length - 1, p));
+    pages.forEach((el, k) => {
+      el.classList.toggle("is-current", k === page);
+      el.classList.toggle("is-before", k < page);
+      el.inert = k !== page;
     });
-    steps[cur].scrollTop = 0;
-    $$("#progress i").forEach((b, k) => b.classList.toggle("on", k <= cur));
-    $("#progress").setAttribute("aria-valuenow", cur + 1);
-    $("#progress").setAttribute("aria-label", `${cur + 1} / ${steps.length}`);
-    $("#prevBtn").disabled = cur === 0;
-    $("#nextBtn").textContent = cur === steps.length - 1 ? "最初から見る" : "次へ";
+    pages[page].scrollTop = 0;
+    $$("#progress i").forEach((b, k) => b.classList.toggle("on", k <= page));
+    $("#progress").setAttribute("aria-valuenow", page + 1);
+    $("#progress").setAttribute("aria-label", `${page + 1} / ${pages.length}`);
+    $("#prevBtn").disabled = page === 0;
+    $("#nextBtn").textContent = page === pages.length - 1 ? "最初から見る" : "次へ";
+
+    clearTimeout(spotTimer);
+    hideSpot();
+    if (tour && !toured.has(page) && TOURS[page].some(usable)) {
+      toured.add(page);
+      spotTimer = setTimeout(() => nextSpot(-1), 520); // ページが入りきってから強調
+    }
+  }
+  // 同じページの次の強調へ。もう無ければ強調を消して、ページを通常表示に戻す
+  function nextSpot(from = spotIdx) {
+    const list = TOURS[page] || [];
+    let i = from + 1;
+    while (list[i] && !usable(list[i])) i++;
+    if (!list[i]) { hideSpot(); return; }
+    const animate = !!spotStep;
+    spotIdx = i;
+    showSpot(list[i], animate, !list.slice(i + 1).some(usable));
+  }
+  function goNext() {
+    if (spotStep) { nextSpot(); return; }
+    const last = $$(".step").length - 1;
+    if (page === last) { toured.clear(); showPage(0); }
+    else showPage(page + 1);
+  }
+  function goPrev() { if (page > 0) showPage(page - 1); }
+
+  /* ---------- スポットライト ---------- */
+  function rectOf(s) {
+    let r;
+    if (s.tight) { const rg = document.createRange(); rg.selectNodeContents(s.el); r = rg.getBoundingClientRect(); }
+    else r = s.el.getBoundingClientRect();
+    const pad = s.pad ?? 10, v = $("#steps").getBoundingClientRect();
+    const x1 = Math.max(6, r.left - pad), x2 = Math.min(innerWidth - 6, r.right + pad);
+    const y1 = Math.max(v.top + 4, r.top - pad), y2 = Math.min(v.bottom - 4, r.bottom + pad);
+    return { x: x1, y: y1, w: Math.max(0, x2 - x1), h: Math.max(0, y2 - y1) };
+  }
+  function bringIntoView(s) {
+    const box = $$(".step")[s.page], sr = box.getBoundingClientRect(), tr = s.el.getBoundingClientRect(), m = 88;
+    let d = 0;
+    if (tr.bottom > sr.bottom - m) d = tr.bottom - (sr.bottom - m);
+    if (tr.top - d < sr.top + m) d = tr.top - (sr.top + m);
+    if (d) { quietUntil = performance.now() + 200; box.scrollTop += d; }
+  }
+  const holePath = r => {
+    const L = r.x, T = r.y, R = r.x + r.w, B = r.y + r.h;
+    return `polygon(0 0, 0 100%, ${L}px 100%, ${L}px ${T}px, ${R}px ${T}px, ${R}px ${B}px, ${L}px ${B}px, ${L}px 100%, 100% 100%, 100% 0)`;
+  };
+  function drawHole(r, live) {
+    const ring = $("#spotRing"), c = $("#spotCatch").style;
+    Object.assign(ring.style, { left: r.x + "px", top: r.y + "px", width: r.w + "px", height: r.h + "px" });
+    // SNSボタンなど押せる場所は穴を開けてそのまま押せるように。それ以外は画面のどこをタップしても進む
+    c.clipPath = c.webkitClipPath = live ? holePath(r) : "none";
+  }
+  function placeTip(r) {
+    const tip = $("#spotTip"), tw = tip.offsetWidth, th = tip.offsetHeight, g = 14;
+    const navTop = $(".tour-nav").getBoundingClientRect().top;
+    const left = Math.min(Math.max(16, r.x + r.w / 2 - tw / 2), innerWidth - 16 - tw);
+    let top, side = "below";
+    if (r.y + r.h + g + th <= navTop - 6) top = r.y + r.h + g;
+    else if (r.y - g - th >= 8) { top = r.y - g - th; side = "above"; }
+    else { top = Math.max(8, r.y + r.h - th - 12); side = "inside"; }
+    tip.style.left = left + "px";
+    tip.style.top = top + "px";
+    tip.dataset.side = side;
+    tip.style.setProperty("--ax", Math.min(Math.max(20, r.x + r.w / 2 - left), tw - 20) + "px");
+  }
+  function showSpot(s, animate, isLast) {
+    const ring = $("#spotRing"), tip = $("#spotTip");
+    bringIntoView(s);
+    const r = rectOf(s);
+    ring.classList.toggle("no-anim", !animate);
+    ring.classList.remove("pulse");
+    drawHole(r, s.live);
+    spotStep = s;
+    $("#spot").classList.add("on");
+    $("#tour").classList.add("spot-mode");
+    tip.classList.remove("show");
+    clearTimeout(tipTimer);
+    tipTimer = setTimeout(() => {
+      tip.textContent = s.text;
+      const hint = document.createElement("span");
+      hint.className = "spot-hint";
+      hint.textContent = s.live ? "ほかの場所をタップで閉じる" : isLast ? "タップで閉じる" : "タップで次へ";
+      tip.append(hint);
+      placeTip(rectOf(s));
+      tip.classList.add("show");
+      void ring.offsetWidth;
+      ring.classList.add("pulse");
+    }, animate ? 460 : 200);
+  }
+  function hideSpot() {
+    clearTimeout(tipTimer);
+    spotStep = null;
+    spotIdx = -1;
+    $("#spot").classList.remove("on");
+    $("#tour").classList.remove("spot-mode");
+    $("#spotTip").classList.remove("show");
+    $("#spotRing").classList.remove("pulse");
+  }
+  function reposition() {
+    if (!spotStep || performance.now() < quietUntil) return;
+    const r = rectOf(spotStep);
+    $("#spotRing").classList.add("no-anim");
+    drawHole(r, spotStep.live);
+    if ($("#spotTip").classList.contains("show")) placeTip(r);
+  }
+
+  /* ---------- 刀で切る演出（スクランブル → ツアー） ---------- */
+  function slashTo(reveal) {
+    if (reduceMotion) { go("tour"); reveal(); return; }
+    const W = innerWidth, H = innerHeight, y1 = H * .2, y2 = H * .8; // 右上から左下へ斜めに切る
+    const layer = document.createElement("div");
+    layer.className = "slash";
+    layer.setAttribute("aria-hidden", "true");
+    const piece = clip => {
+      const p = document.createElement("div");
+      p.className = "slash-piece";
+      const t = $("#scrambleText").cloneNode(true);
+      t.removeAttribute("id");
+      p.append(t);
+      p.style.clipPath = p.style.webkitClipPath = clip;
+      return p;
+    };
+    const upper = piece(`polygon(0 0, 100% 0, 100% ${y1}px, 0 ${y2}px)`);
+    const lower = piece(`polygon(0 ${y2}px, 100% ${y1}px, 100% 100%, 0 100%)`);
+    const blade = document.createElement("div");
+    blade.className = "blade";
+    layer.append(lower, upper, blade);
+    document.body.append(layer);
+
+    // 切れ目の下にツアーを用意しておく
+    const tour = $("#tour");
+    tour.style.transition = "none";
+    go("tour");
+    reveal();
+    void tour.offsetWidth;
+    tour.style.transition = "";
+
+    // 刃の軌跡
+    const dx = -W, dy = y2 - y1, len = Math.hypot(dx, dy), ux = dx / len, uy = dy / len, ext = 48;
+    const rot = `rotate(${Math.atan2(dy, dx) * 180 / Math.PI}deg)`;
+    Object.assign(blade.style, { left: (W - ux * ext) + "px", top: (y1 - uy * ext - 1) + "px", width: (len + ext * 2) + "px", transform: `${rot} scaleX(0)` });
+    const CUT = 170;
+    blade.animate([{ transform: `${rot} scaleX(0)` }, { transform: `${rot} scaleX(1)` }],
+      { duration: CUT, easing: "cubic-bezier(.7,0,.9,.5)", fill: "forwards" });
+    blade.animate([{ opacity: 1 }, { opacity: 1, offset: .4 }, { opacity: 0 }],
+      { duration: 650, delay: CUT, fill: "forwards" });
+    // 手応え（わずかな揺れ）
+    layer.animate([{ transform: "none" }, { transform: "translate(4px,-3px)" }, { transform: "translate(-3px,2px)" }, { transform: "none" }],
+      { duration: 180, delay: CUT });
+
+    // 切り口に沿って、上下の画面がずれて落ちる
+    const nu = [-uy, ux], nd = [uy, -ux];
+    const slide = (el, a, b, n, far, spin) => el.animate([
+      { transform: "none", opacity: 1, easing: "cubic-bezier(.2,.8,.3,1)" },                       // ずるっと滑る
+      { transform: `translate(${ux * a + n[0] * 3}px,${uy * a + n[1] * 3}px)`, opacity: 1, offset: .32, easing: "cubic-bezier(.55,0,.9,.45)" },
+      { transform: `translate(${ux * b + n[0] * far}px,${uy * b + n[1] * far}px) rotate(${spin}deg)`, opacity: 0 } // 崩れ落ちる
+    ], { duration: 950, delay: CUT + 140, fill: "forwards" });
+    slide(upper, 26, W * .55, nu, H * .12, -5);
+    const last = slide(lower, -12, -W * .35, nd, H * .1, 4);
+    const done = () => layer.remove();
+    last.finished.then(done, done);
+    setTimeout(done, 2000);
   }
 
   /* ---------- 連絡先（vCard） ---------- */
@@ -597,8 +851,12 @@ dialog.qr::backdrop{background:rgba(0,0,0,.55)}
     renderTour();
     companyLogo().then(src => { if (src) { const l = $("#tourLogo"); l.src = src; l.alt = P.company; l.hidden = false; } });
 
-    $("#prevBtn").addEventListener("click", () => showStep(cur - 1));
-    $("#nextBtn").addEventListener("click", () => showStep(cur === $$(".step").length - 1 ? 0 : cur + 1));
+    $("#prevBtn").addEventListener("click", goPrev);
+    $("#nextBtn").addEventListener("click", goNext);
+    // 強調表示中のタップ：同じページの次の強調へ。最後なら強調を消してページを通常表示に
+    $("#spotCatch").addEventListener("click", () => nextSpot());
+    $("#steps").addEventListener("scroll", reposition, { capture: true, passive: true });
+    addEventListener("resize", () => { quietUntil = 0; reposition(); });
     $("#qrClose").addEventListener("click", () => $("#qrDialog").close ? $("#qrDialog").close() : $("#qrDialog").removeAttribute("open"));
     $("#copyBtn").addEventListener("click", async e => {
       try { await navigator.clipboard.writeText(pageUrl()); flash(e.currentTarget, "コピーしました"); }
@@ -607,21 +865,22 @@ dialog.qr::backdrop{background:rgba(0,0,0,.55)}
     $("#shareBtn").addEventListener("click", () => navigator.share({ title: document.title, url: pageUrl() }).catch(() => {}));
 
     let sx = 0, sy = 0;
-    const stepsEl = $("#steps");
-    stepsEl.addEventListener("touchstart", e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
-    stepsEl.addEventListener("touchend", e => {
+    const tourEl = $("#tour");
+    tourEl.addEventListener("touchstart", e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+    tourEl.addEventListener("touchend", e => {
       const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
-      if (Math.abs(dx) > 56 && Math.abs(dx) > Math.abs(dy) * 1.4) showStep(cur + (dx < 0 ? 1 : -1));
+      if (Math.abs(dx) > 56 && Math.abs(dx) > Math.abs(dy) * 1.4) (dx < 0 ? goNext : goPrev)();
     }, { passive: true });
     document.addEventListener("keydown", e => {
       if (!$("#tour").classList.contains("is-active") || $("#qrDialog").open) return;
-      if (e.key === "ArrowRight") showStep(cur + 1);
-      if (e.key === "ArrowLeft") showStep(cur - 1);
+      if (e.key === "ArrowRight") goNext();
+      if (e.key === "ArrowLeft") goPrev();
+      if (e.key === "Escape") hideSpot();
     });
 
     // 自分のQRをすぐ見せたいとき: 公開URL?qr
     if (new URLSearchParams(location.search).has("qr")) {
-      go("tour"); showStep(3); openQR();
+      go("tour"); showPage($$(".step").length - 1, { tour: false }); openQR();
       return;
     }
 
@@ -631,7 +890,7 @@ dialog.qr::backdrop{background:rgba(0,0,0,.55)}
     renderSplash();
     let splashDone = false, toured = false, finishScramble = null, scrambleDone = false, holdTimer = 0;
 
-    const toTour = () => { if (toured) return; toured = true; go("tour"); showStep(0); };
+    const toTour = () => { if (toured) return; toured = true; clearTimeout(holdTimer); slashTo(() => showPage(0)); };
     const afterSplash = () => {
       if (splashDone) return;
       splashDone = true;
@@ -642,7 +901,7 @@ dialog.qr::backdrop{background:rgba(0,0,0,.55)}
       finishScramble = scramble(el, P.scramble, () => {
         scrambleDone = true;
         $("#scramble").classList.add("is-done");
-        holdTimer = setTimeout(toTour, SCRAMBLE_HOLD_MS);
+        holdTimer = setTimeout(toTour, SLASH_DELAY_MS);
       });
     };
     const splashTimer = setTimeout(afterSplash, SPLASH_MS);
