@@ -11,8 +11,8 @@ NFCカードとQRコードで渡すデジタル名刺です。
 ├── profile.js              メンバーごとの情報（Claude Code が書き換える）
 ├── .nojekyll               GitHub Pages 用
 └── assets/
-    ├── company-logo.svg    会社ロゴ（管理者が差し替え）
-    ├── company-logo-light.svg  濃い背景用の白抜きロゴ（任意）
+    ├── company-logo.png    会社ロゴ（管理者が差し替え。.svg でも可）
+    ├── company-logo-light.png  濃い背景用の白抜きロゴ（任意。.svg でも可）
     └── photo.jpg           メンバーの写真（作成時に追加される）
 ```
 
@@ -20,9 +20,8 @@ NFCカードとQRコードで渡すデジタル名刺です。
 
 1. このフォルダを GitHub にリポジトリとして push する。
 2. GitHub の Settings → General で「Template repository」にチェックを入れる。
-3. `assets/company-logo.svg` を自社ロゴに差し替える。
-   - 濃い背景色でロゴが見えにくい場合は、白抜き版を `assets/company-logo-light.svg` として追加する（背景色に合わせて自動で使い分け）。
-   - PNG を使う場合は、`index.html` 冒頭の `ASSETS` のファイル名を変更する。
+3. 自社ロゴを `assets/company-logo.png`（または `.svg`）としてアップロードする。PNGとSVGのどちらでも、`index.html` の書き換えは不要（PNGがあればPNGを優先）。
+   - 濃い背景色でロゴが見えにくい場合は、白抜き版を `assets/company-logo-light.png`（または `.svg`）として追加する（背景色に合わせて自動で使い分け）。
 4. 起動アニメーションでアプリロゴを使う場合は、画像を `assets/app-logo.svg` などに置き、`ASSETS.appLogo` にそのパスを書く（空のままなら内蔵のマークを表示）。
 
 ## メンバーの手順
@@ -39,10 +38,11 @@ NFCカードとQRコードで渡すデジタル名刺です。
 
 ## 受け取った人が見る流れ
 
-1. 起動アニメーション（会社ロゴ または アプリロゴ、5秒。タップで先へ進める）
-2. スクランブルするメッセージ
-3. 名刺ツアー：ようこそ！ → 私の名前です → こんな人間です → SNSでつながりませんか？
-4. 最後のページで SNS へ移動、連絡先に保存（vCard）、QRコードの表示ができる
+1. 起動ロゴ（会社ロゴ または アプリロゴ、約1秒。タップで飛ばせる）
+2. 名刺ページ（1枚・縦スクロール）：写真と名前 → ひとこと → 自己紹介 → SNS → 連絡先 → プロフィール → 「連絡先に保存」「QRコードを表示」
+3. ページが出ると、名前 → 写真 → SNS（Facebook、無ければ Sansan）の順に強調表示。タップするたびに次へ進み、最後のタップで消えて、あとは自由にスクロールできる
+
+吹き出しの文言は `index.html` 冒頭の `TOUR_TEXT` で変えられます。
 
 ## メモ
 
