@@ -20,8 +20,6 @@
   --line:rgba(var(--fg-rgb),.22);
   --tint:rgba(var(--fg-rgb),.07);
   --tint-strong:rgba(var(--fg-rgb),.14);
-  --hl:rgb(241,243,246);   /* 強調表示中の吹き出し・枠の色（背景色に合わせて自動設定） */
-  --on-hl:#1F3A5F;
   --pad:24px;
   --font:"Murecho","Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",system-ui,sans-serif;
   --ease:cubic-bezier(.2,.7,.2,1);
@@ -116,28 +114,6 @@ h1,h2,p,ul,dl,dd{margin:0}
 .btn-line:active{background:var(--tint)}
 .btn-text{min-height:48px;padding:12px 4px;color:var(--muted);font-weight:500}
 
-/* ---------- 強調表示（ツアー） ---------- */
-.spot{position:fixed;inset:0;z-index:20;pointer-events:none;opacity:0;transition:opacity .35s var(--ease)}
-.spot.on{opacity:1}
-.spot-catch{position:absolute;inset:0;cursor:pointer}
-.spot.on .spot-catch{pointer-events:auto}
-.spot-ring{position:absolute;border-radius:14px;box-shadow:0 0 0 2px var(--hl),0 0 0 200vmax rgba(0,0,0,.62)}
-.spot-ring::after{content:"";position:absolute;inset:-2px;border-radius:16px;box-shadow:0 0 0 2px var(--hl);opacity:0}
-.spot-ring.pulse::after{animation:ring-pulse 1.3s var(--ease) 2}
-@keyframes ring-pulse{from{inset:-2px;opacity:.85}to{inset:-16px;border-radius:26px;opacity:0}}
-.spot-tip{
-  position:absolute;width:max-content;max-width:min(300px,calc(100vw - 32px));
-  padding:12px 16px;border-radius:14px;background:var(--hl);color:var(--on-hl);
-  font-size:15px;font-weight:700;line-height:1.55;
-  opacity:0;transform:translateY(6px);transition:opacity .3s var(--ease),transform .3s var(--ease);
-}
-.spot-tip.show{opacity:1;transform:none}
-.spot-tip::before{content:"";position:absolute;left:calc(var(--ax,50%) - 7px);width:14px;height:14px;border-radius:2px;background:inherit;transform:rotate(45deg)}
-.spot-tip[data-side="below"]::before{top:-6px}
-.spot-tip[data-side="above"]::before{bottom:-6px}
-.spot-tip[data-side="inside"]::before{display:none}
-.spot-hint{display:block;margin-top:4px;font-size:12px;font-weight:500;opacity:.68}
-
 /* ---------- QRコード ---------- */
 dialog.qr{
   width:min(88vw,360px);max-height:92vh;margin:auto;padding:28px 24px 14px;
@@ -169,12 +145,6 @@ dialog.qr::backdrop{background:rgba(0,0,0,.55)}
 
 <main class="card" id="card" aria-label="名刺"></main>
 
-<div class="spot" id="spot">
-  <div class="spot-catch" id="spotCatch"></div>
-  <div class="spot-ring" id="spotRing"></div>
-  <p class="spot-tip" id="spotTip" role="status" aria-live="polite"></p>
-</div>
-
 <dialog class="qr" id="qrDialog" aria-labelledby="qrTitle">
   <p class="qr-title" id="qrTitle"></p>
   <p class="qr-sub" id="qrSub"></p>
@@ -202,16 +172,7 @@ dialog.qr::backdrop{background:rgba(0,0,0,.55)}
     appLogo: "" // アプリロゴの画像パス。空なら内蔵マークを表示
   };
   const SPLASH_MS = 1000;   // 起動ロゴを表示する長さ
-  const TOUR_DELAY_MS = 650; // ロゴが消えてから、強調表示が始まるまで
   const QR_LIB = "https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";
-
-  /* 強調表示（ツアー）の吹き出しの文言。順番は 名前 → 写真 → SNS */
-  const TOUR_TEXT = {
-    name: p => p.name ? `${p.name}です。どうぞよろしくお願いします。` : "はじめまして。",
-    photo: "顔も覚えていただけるとうれしいです。",
-    sns: label => `${label}でつながりませんか？ タップするとプロフィールが開きます。`,
-    save: "連絡先に保存して、いつでもご連絡ください。"
-  };
 
   /* profile.js が読めないときのサンプル */
   const DEMO = {
@@ -236,7 +197,7 @@ dialog.qr::backdrop{background:rgba(0,0,0,.55)}
   const APP_MARK = '<svg viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="12" y="32" width="74" height="54" rx="10"/><circle cx="33" cy="52" r="7" fill="currentColor" stroke="none"/><path d="M50 49h22M50 64h14"/><path d="M96 43a26 26 0 0 1 0 32"/><path d="M106 33a40 40 0 0 1 0 52" opacity=".55"/></svg>';
   const EXT_ICON = '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.5 4H16v4.5"/><path d="M16 4l-7 7"/><path d="M14 11.5V15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h3.5"/></svg>';
 
-  /* 表示順＝優先順位。いちばん上のSNSが強調表示される（1位 Facebook、2位 Sansan） */
+  /* SNSの表示順（1位 Facebook、2位 Sansan） */
   const SNS_DEFS = [
     { key: "facebook",  label: "Facebook",  mark: "Fb", toUrl: v => "https://www.facebook.com/" + v },
     { key: "sansan",    label: "Sansan",    mark: "Sa", toUrl: v => v },
@@ -328,9 +289,6 @@ dialog.qr::backdrop{background:rgba(0,0,0,.55)}
     const root = document.documentElement.style;
     root.setProperty("--bg", "#" + h);
     root.setProperty("--fg-rgb", fg.join(","));
-    // 強調表示中は画面が暗くなるので、吹き出しと枠は暗い面の上で目立つ色にする
-    root.setProperty("--hl", isDark ? `rgb(${fg.join(",")})` : "#fff");
-    root.setProperty("--on-hl", isDark ? "#" + h : `rgb(${fg.join(",")})`);
     $('meta[name="theme-color"]').setAttribute("content", "#" + h);
   }
 
@@ -430,128 +388,6 @@ dialog.qr::backdrop{background:rgba(0,0,0,.55)}
     $("#saveBtn").addEventListener("click", saveContact);
     $("#qrBtn").addEventListener("click", openQR);
     document.title = [P.name, P.company].filter(Boolean).join(" | ") || "Digital Card";
-    buildTour();
-  }
-
-  /* ---------- 強調表示（ツアー） ----------
-     名前 → 写真 → SNS（Facebook ＞ Sansan ＞ その他。SNSが無ければ「連絡先に保存」）
-     タップするたびに次へ。最後のタップで消えて、あとは自由にスクロールできる */
-  let TOUR = [], tourIdx = -1, tourCur = null, lastRect = null, animRaf = 0, tipTimer = 0, busy = false;
-  function buildTour() {
-    const c = $("#card"), q = s => c.querySelector(s);
-    TOUR = [
-      { el: q(".name"), tight: true, text: TOUR_TEXT.name(P) },
-      P.photo && { el: q(".photo"), pad: 6, text: TOUR_TEXT.photo, when: () => !!q(".photo img") },
-      P.sns.length
-        ? { el: q(".sns a"), pad: 6, live: true, text: TOUR_TEXT.sns(P.sns[0].label) }
-        : { el: q("#saveBtn"), pad: 6, live: true, text: TOUR_TEXT.save }
-    ].filter(t => t && t.el);
-  }
-  const usable = t => !t.when || t.when();
-
-  function rectOf(t) {
-    let r;
-    if (t.tight) { const rg = document.createRange(); rg.selectNodeContents(t.el); r = rg.getBoundingClientRect(); }
-    else r = t.el.getBoundingClientRect();
-    const pad = t.pad ?? 10;
-    const x1 = Math.max(6, r.left - pad), x2 = Math.min(innerWidth - 6, r.right + pad);
-    const y1 = Math.max(6, r.top - pad), y2 = Math.min(innerHeight - 6, r.bottom + pad);
-    return { x: x1, y: y1, w: Math.max(0, x2 - x1), h: Math.max(0, y2 - y1) };
-  }
-  // 吹き出しが入る余白を残して、強調する場所が画面に収まるスクロール位置
-  function scrollFor(t) {
-    const r = t.el.getBoundingClientRect(), top = 90, bottom = innerHeight - 150;
-    let d = 0;
-    if (r.bottom > bottom) d = r.bottom - bottom;
-    if (r.top - d < top) d = r.top - top;
-    const max = document.documentElement.scrollHeight - innerHeight;
-    return Math.max(0, Math.min(max, scrollY + d));
-  }
-  const holePath = r => {
-    const L = r.x, T = r.y, R = r.x + r.w, B = r.y + r.h;
-    return `polygon(0 0, 0 100%, ${L}px 100%, ${L}px ${T}px, ${R}px ${T}px, ${R}px ${B}px, ${L}px ${B}px, ${L}px 100%, 100% 100%, 100% 0)`;
-  };
-  function drawHole(r, live) {
-    lastRect = r;
-    Object.assign($("#spotRing").style, { left: r.x + "px", top: r.y + "px", width: r.w + "px", height: r.h + "px" });
-    // SNSボタンなど押せる場所は穴を開けてそのまま押せるように。それ以外は画面のどこをタップしても進む
-    const c = $("#spotCatch").style;
-    c.clipPath = c.webkitClipPath = live ? holePath(r) : "none";
-  }
-  function placeTip(r) {
-    const tip = $("#spotTip"), tw = tip.offsetWidth, th = tip.offsetHeight, g = 14;
-    const left = Math.min(Math.max(16, r.x + r.w / 2 - tw / 2), innerWidth - 16 - tw);
-    let top, side = "below";
-    if (r.y + r.h + g + th <= innerHeight - 12) top = r.y + r.h + g;
-    else if (r.y - g - th >= 12) { top = r.y - g - th; side = "above"; }
-    else { top = Math.max(12, r.y + r.h - th - 12); side = "inside"; }
-    tip.style.left = left + "px";
-    tip.style.top = top + "px";
-    tip.dataset.side = side;
-    tip.style.setProperty("--ax", Math.min(Math.max(20, r.x + r.w / 2 - left), tw - 20) + "px");
-  }
-  const ease = k => k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
-  const lerpRect = (a, b, e) => ({ x: a.x + (b.x - a.x) * e, y: a.y + (b.y - a.y) * e, w: a.w + (b.w - a.w) * e, h: a.h + (b.h - a.h) * e });
-
-  function nextSpot() {
-    let i = tourIdx + 1;
-    while (TOUR[i] && !usable(TOUR[i])) i++;
-    if (!TOUR[i]) { endTour(); return; }
-    const isLast = !TOUR.slice(i + 1).some(usable);
-    tourIdx = i;
-    focusSpot(TOUR[i], isLast);
-  }
-  function focusSpot(t, isLast) {
-    const tip = $("#spotTip"), ring = $("#spotRing");
-    const from = tourCur ? lastRect : null;
-    tourCur = t;
-    tip.classList.remove("show");
-    ring.classList.remove("pulse");
-    clearTimeout(tipTimer);
-    cancelAnimationFrame(animRaf);
-    $("#spot").classList.add("on");
-
-    // 枠の移動とスクロールを同時に動かす（SNSのように下にある場所へは、画面ごとスクロール）
-    const y0 = scrollY, y1 = scrollFor(t);
-    const D = reduceMotion || (!from && y0 === y1) ? 0 : 620;
-    const t0 = performance.now();
-    busy = true;
-    const step = now => {
-      const k = D ? Math.min(1, (now - t0) / D) : 1, e = ease(k);
-      if (y1 !== y0) scrollTo(0, y0 + (y1 - y0) * e);
-      const to = rectOf(t);
-      drawHole(from ? lerpRect(from, to, e) : to, t.live);
-      if (k < 1) { animRaf = requestAnimationFrame(step); return; }
-      busy = false;
-      tipTimer = setTimeout(() => {
-        tip.textContent = t.text;
-        const hint = document.createElement("span");
-        hint.className = "spot-hint";
-        hint.textContent = t.live ? "ほかの場所をタップで閉じる" : isLast ? "タップで閉じる" : "タップで次へ";
-        tip.append(hint);
-        placeTip(rectOf(t));
-        tip.classList.add("show");
-        void ring.offsetWidth;
-        ring.classList.add("pulse");
-      }, from ? 60 : 220);
-    };
-    animRaf = requestAnimationFrame(step);
-  }
-  function endTour() {
-    cancelAnimationFrame(animRaf);
-    clearTimeout(tipTimer);
-    busy = false;
-    tourCur = null;
-    tourIdx = TOUR.length;
-    $("#spot").classList.remove("on");
-    $("#spotTip").classList.remove("show");
-    $("#spotRing").classList.remove("pulse");
-  }
-  function reposition() {
-    if (!tourCur || busy) return;
-    const r = rectOf(tourCur);
-    drawHole(r, tourCur.live);
-    if ($("#spotTip").classList.contains("show")) placeTip(r);
   }
 
   /* ---------- 連絡先（vCard） ---------- */
@@ -621,14 +457,6 @@ dialog.qr::backdrop{background:rgba(0,0,0,.55)}
     renderCard();
     companyLogo().then(src => { if (src) { const l = $("#cardLogo"); l.src = src; l.alt = P.company; l.hidden = false; } });
 
-    $("#spotCatch").addEventListener("click", nextSpot);
-    addEventListener("scroll", reposition, { passive: true });
-    addEventListener("resize", reposition);
-    document.addEventListener("keydown", e => {
-      if (!tourCur || $("#qrDialog").open) return;
-      if (e.key === "Escape") endTour();
-      if (e.key === "Enter" || e.key === " " || e.key === "ArrowRight") { e.preventDefault(); nextSpot(); }
-    });
     $("#qrClose").addEventListener("click", () => $("#qrDialog").close ? $("#qrDialog").close() : $("#qrDialog").removeAttribute("open"));
     $("#copyBtn").addEventListener("click", async e => {
       try { await navigator.clipboard.writeText(pageUrl()); flash(e.currentTarget, "コピーしました"); }
@@ -636,7 +464,7 @@ dialog.qr::backdrop{background:rgba(0,0,0,.55)}
     });
     $("#shareBtn").addEventListener("click", () => navigator.share({ title: document.title, url: pageUrl() }).catch(() => {}));
 
-    // 自分のQRをすぐ見せたいとき: 公開URL?qr（ロゴも強調表示も出さない）
+    // 自分のQRをすぐ見せたいとき: 公開URL?qr（起動ロゴを出さない）
     if (new URLSearchParams(location.search).has("qr")) {
       $("#splash").classList.add("is-gone");
       document.body.classList.remove("locked");
@@ -644,7 +472,7 @@ dialog.qr::backdrop{background:rgba(0,0,0,.55)}
       return;
     }
 
-    // 起動ロゴ（約1秒・タップで飛ばせる）→ 名刺ページ → 強調表示
+    // 起動ロゴ（約1秒・タップで飛ばせる）→ 名刺ページ
     document.documentElement.style.setProperty("--splash-ms", SPLASH_MS + "ms");
     scrollTo(0, 0);
     renderSplash();
@@ -655,7 +483,6 @@ dialog.qr::backdrop{background:rgba(0,0,0,.55)}
       clearTimeout(timer);
       $("#splash").classList.add("is-gone");
       document.body.classList.remove("locked");
-      setTimeout(nextSpot, TOUR_DELAY_MS);
     };
     const timer = setTimeout(finish, SPLASH_MS);
     $("#splash").addEventListener("click", finish);
